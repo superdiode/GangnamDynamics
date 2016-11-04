@@ -3,10 +3,11 @@
 import rospy
 import math
 
+from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Float64
 from math import sin,cos,atan2,sqrt,fabs
 from numpy import *
-from rospy.numpy_msg import numpy_msg
+from sensor_msgs.msg import JointState
 
 class Acrobot:
     # kinematic, dynamic parameter
@@ -23,7 +24,6 @@ class Acrobot:
     G = zeros((2,1))
     # state
     q = zeros((2,1))
-    q_old = zeros((2,1))
     dq = zeros((2,1))
     
     # desired value
@@ -54,15 +54,12 @@ class Acrobot:
         self.G[1] = self.m2*g*self.lc2*sin(self.q[0] + self.q[1])
 
     def swingup_control(self):
-        self.dq = self.q - self.q_old
         
         self.inv_dynamics(self.q, self.dq)
         phi = self.C.dot(self.dq) + self.G
         v = self.ddq1_d - self.kv*(self.dq1_d - self.dq[0]) - self.kp*(self.q1_d - self.q[0])
         
         self.tau2 = ( self.H[1,0] - self.H[1,1]*self.H[0,0]/self.H[0,1] ) * v - self.H[1,1]/self.H[0,1]*phi[0] + phi[1]
-        #print( phi)
-        self.q_old = self.q
 
         return self.tau2
 
@@ -71,9 +68,11 @@ class Acrobot:
 
 #Joint state publisher
 def acrobot_joint_state_subscriber(data):
-    acrobot.q[0] = data[0]
-    acrobot.q[1] = data[1]
-    print(acrobot.q)
+    acrobot.q[0] = data.position[0]
+    acrobot.q[1] = data.position[1]
+    acrobot.dq[0] = data.velocity[0]
+    acrobot.dq[1] = data.velocity[1]
+    
 
 #Define a RRBot joint positions publisher for joint controllers.
 def acrobot_control_publisher():
@@ -82,7 +81,7 @@ def acrobot_control_publisher():
     rospy.init_node('acrobot_control_node', anonymous=True)
 
     #Define subscribers for each joint state
-    rospy.Subscriber('rrbot/joint_states/position', numpy_msg(Float64), acrobot_joint_state_subscriber)
+    rospy.Subscriber('/rrbot/joint_states', JointState, acrobot_joint_state_subscriber)
 
     #Define publishers for each joint position controller commands.
     pub2 = rospy.Publisher('/rrbot/joint2_torque_controller/command', Float64, queue_size=10)
@@ -93,14 +92,8 @@ def acrobot_control_publisher():
     i = 0
     while not rospy.is_shutdown():
 
-        # calculate torque
-
-        acrobot.swingup_control()
-
         #Publish torque
-        pub2.publish(10*sin(100*i))
-        #print(acrobot.tau2)
-        #pub2.publish(1.0)
+        pub2.publish(acrobot.swingup_control())
 
         i = i+1 #increment i
 
