@@ -41,18 +41,7 @@ figure(1)
 plot(x_arr(:,1),x_arr(:,2),'-r')
 
 %% Loop for animation
-
-% subplot(1,2,2)
-% axis(gca, 'equal')
-% plot(x_arr(:,1),x_arr(:,2),'-r')
-% hold on
-% 
-% title('phase portrait','fontsize',12)
-% xlabel('\theta','fontsize',12)
-% ylabel('\thetadot','fontsize',12)
-
 figure(2)
-
 for i=1:1:FinalTime
 
 %     % draw pendulum    
